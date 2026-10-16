@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('web/app.js','utf8');
+const functions=['previewPersonaButtons','previewLoginMarkup','googleSignInMarkup','login'].map(name=>{
+ const line=source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`));assert.ok(line,`${name} must be tested`);return line;
+}).join('\n');
+let html='',setupClick;const details={hidden:true,innerHTML:''};const app={set innerHTML(value){html=value;},querySelector:key=>key==='#google-setup'?{addEventListener:(_,handler)=>{setupClick=handler;}}:key==='#google-setup-details'?details:null,querySelectorAll:()=>[]};
+const context=vm.createContext({app,state:{auth:{preview:true,configured:false,missing_configuration:['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET']}},e:v=>String(v)});
+vm.runInContext(functions+'\nlogin();',context);
+assert.ok(!html.includes('${'),'Login must not display literal template interpolation');
+for(const persona of ['visitor','student','vice','secretary','treasurer','advisor','sld'])assert.ok(html.includes(`data-persona="${persona}"`));
+assert.equal((html.match(/data-persona=/g)||[]).length,7);assert.ok(html.includes('Student tests public events'));assert.ok(html.includes('Fictional accounts'));assert.ok(html.includes('google-setup'));assert.ok(html.includes('Google'));setupClick();assert.ok(details.innerHTML.includes('/setup/google'));
+context.state.auth={preview:false,configured:true};vm.runInContext('login();',context);
+assert.ok(!html.includes('data-persona='));assert.ok(html.includes('/auth/google'));
+console.log('PASS: actual login render has seven fictional test roles including an unassigned Student and actionable setup; configured official-mode render offers Google with no fictional access or literal interpolation.');

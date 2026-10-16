@@ -1,0 +1,37 @@
+.vendor/
+.tools/
+data/
+__pycache__/
+*.pyc
+.env
+.agency/validation/
+.agency/qa/
+
+# Local agency context, histories and generated review evidence are private.
+.agency/
+.hallmark/
+MEMORY.md
+PLAN.md
+PRD.md
+RULES.md
+TIMELINE.md
+
+# Credentials, user records, tool caches and disposable test evidence.
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+*.log
+.venv/
+venv/
+node_modules/
+.playwright-cli/
+test-results/
+playwright-report/
+docs/review/*.pdf
+docs/review/*.docx
+docs/review/*.zip
+docs/SOURCE_REFERENCE.md
+.DS_Store
+Thumbs.db

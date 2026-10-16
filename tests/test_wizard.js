@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('web/app.js','utf8');
+const names=['plannedDuration','proposalStepErrors','firstProposalErrorStep'];
+const functions=names.map(name=>source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`))).join('\n');
+const context=vm.createContext({Date,Number,String,Array,Object,Set,Math});vm.runInContext(functions+'\nglobalThis.rules={plannedDuration,proposalStepErrors,firstProposalErrorStep};',context);
+const r=context.rules,complete={title:'Learning event',summary:'A useful event',venue:'Hall',introduction:'Background',eligibility:'Students',objectives:['Learn together','Share skills'],date:'2026-11-01',end_date:'2026-11-02',start_time:'23:00',end_time:'01:30',target_count:20,nature:[],mode:'Physical',ict_required:false,logistics_required:false,activities:[{name:'Session',description:'Discussion'}],itinerary:[{start:'23:00',end:'01:30',agenda:'Session'}],committee:[{email:'person@qiu.edu.my',name:'Person',role:'Coordinator',responsibility:'Organise'}],revenue:[],expenses:[],conclusion:'Expected outcomes'};
+assert.equal(r.plannedDuration(complete).seconds,9000);assert.equal(r.plannedDuration({...complete,end_date:'2026-11-03'}).label,'1 day 2 hours 30 minutes');
+assert.equal(r.plannedDuration({...complete,date:'2026-02-30',end_date:'2026-03-03'}).seconds,null);
+assert.equal(r.plannedDuration({...complete,start_time:'24:00'}).seconds,null);
+assert.equal(r.firstProposalErrorStep(r.proposalStepErrors(complete),2),null);
+const overview=r.proposalStepErrors({...complete,title:'',objectives:['Only one']});assert.equal(r.firstProposalErrorStep(overview,0),0);
+const programme=r.proposalStepErrors({...complete,committee:[{email:'person@qiu.edu.my',name:'Person',role:'',responsibility:''}]});assert.equal(r.firstProposalErrorStep(programme,0),null);assert.equal(r.firstProposalErrorStep(programme,1),1);assert.ok(programme[1].committee_0_role);
+const conditional=r.proposalStepErrors({...complete,mode:'Virtual',ict_required:true,ict:''});assert.ok(conditional[1].ict);
+const other=r.proposalStepErrors({...complete,collaboration_other_enabled:true,collaboration_other:''});assert.ok(other[0].collaboration_other);
+assert.equal(r.firstProposalErrorStep(r.proposalStepErrors({...complete,collaboration_other_enabled:false,collaboration_other:''}),0),null);
+const budget=r.proposalStepErrors({...complete,revenue:[{description:'',price:'',quantity:0}]});assert.equal(r.firstProposalErrorStep(budget,1),null);assert.equal(r.firstProposalErrorStep(budget,2),2);assert.ok(budget[2].revenue_0_description);
+console.log('PASS: actual wizard rules gate earlier required sections, allow valid backward sections/free budgets, validate conditional Other/virtual ICT and derive strict MYT duration.');
