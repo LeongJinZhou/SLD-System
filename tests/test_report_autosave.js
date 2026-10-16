@@ -1,7 +1,9 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),marker=source.slice(source.indexOf('// REPORT_AUTOSAVE_START'),source.indexOf('// REPORT_AUTOSAVE_END'));
-const fields=source.split(/\r?\n/).find(line=>line.startsWith('const reportEditableFields='));
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const marker=loader.section('REPORT_AUTOSAVE');
+const fields=loader.declaration('const','reportEditableFields');
 const requests=[],pending=[];let failure=false;
 const context=vm.createContext({structuredClone,Error,clearTimeout,setTimeout:()=>1,document:{querySelector:()=>null},sessionError:()=>Error('Session expired'),clearRecovery:()=>{},notice:()=>{},showReportRemote:()=>{},api:async(path,body)=>{if(!body)return {reports:[{id:'report',revision:5}]};requests.push({path,payload:body.report});if(failure)throw Object.assign(Error('Offline'),{status:503});return new Promise(resolve=>pending.push(()=>resolve({report:{...body.report,id:'report',revision:(body.report.revision||0)+1,status:'draft',can_edit:true,can_sign:true,signing_slot:'president',progress:{percent:50},signer_profile:{name:'Canonical President'}}})));}});
 vm.runInContext(`let reportDraft={creation_key:'stable-key',club_id:'club',title:'First',can_edit:true,history:[{signature:'private'}],signatures:{president:{signature:'private'}},signer_profile:{name:'Do not send'},revision:0},reportEditVersion=1,reportSavedVersion=0,reportSavePromise=null,reportSaveTimer,reportSaveError='',reportRemote=null,dirty=true,sessionExpired=false,state={club_reports:[]};${fields}\n${marker}\nglobalThis.c={save:flushReport,edit(title){reportDraft.title=title;markReportChanged();},snapshot:()=>({reportDraft,reportSavedVersion,reportEditVersion,dirty,reportSaveError}),remote(){reportRemote={revision:9};},expire(){sessionExpired=true;}};`,context);

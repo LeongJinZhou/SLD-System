@@ -2,8 +2,9 @@
 // Real controller helpers with a DOM mock; does not claim browser layout QA.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
-const scroll=source.slice(source.indexOf('// WORKSPACE_SCROLL_START'),source.indexOf('// WORKSPACE_SCROLL_END'));
-const functions=['workspaceKind','performanceCanView','performanceClubs','navigationGroups','reviewAssignments','markNotificationRead','openNotificationRecord'].map(name=>source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`)||line.startsWith(`async function ${name}(`))).join('\n');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const scroll=loader.section('WORKSPACE_SCROLL');
+const functions=loader.functions(['workspaceKind','performanceCanView','performanceClubs','navigationGroups','reviewAssignments','markNotificationRead','openNotificationRecord']);
 const details=[{open:true},{open:false}],focus=[],moves=[],requests=[],renders=[];
 const input={id:'objective_0',name:'objective_0',tagName:'INPUT',dataset:{},selectionStart:3,selectionEnd:7,focus:options=>focus.push(options),setSelectionRange:(start,end)=>{input.range=[start,end];}};
 const main={focus:options=>focus.push(options)},form={querySelectorAll:()=>details};

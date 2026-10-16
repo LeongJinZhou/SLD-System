@@ -1,9 +1,10 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
 const names=['financialReportCanEdit','saveFinancialReport','flushFinancialReport','financeRecovery'];
-const functions=names.map(name=>source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`)||line.startsWith(`async function ${name}(`))).join('\n');
-assert.ok(functions.includes('async function saveFinancialReport'));
+const functions=loader.functions(names);
+assert.match(functions,/async\s+function\s+saveFinancialReport\s*\(/);
 const pending=[],requests=[];const context=vm.createContext({structuredClone,Error,JSON,document:{querySelector:()=>null},
  captureFinancialReport:()=>{},clearRecovery:()=>{},showFinancialRemoteChange:()=>{},
  api:(path,body)=>{requests.push({path,body});return new Promise((resolve,reject)=>pending.push({resolve,reject}));}});

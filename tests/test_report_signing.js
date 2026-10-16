@@ -1,6 +1,8 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),controller=source.split(/\r?\n/).find(line=>line.startsWith('async function openReportSigning('));
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const controller=loader.fn('openReportSigning');
 const requests=[];let drawing=null,pendingAction,changeOnFlush=false;
 const form={elements:{report_comment:{value:''}},querySelector:selector=>selector==='canvas'?{focus(){}}:selector==='#return-club-report'?{addEventListener:(name,handler)=>form.return=handler}:{onclick:null}};
 const target={innerHTML:'',querySelector:()=>form};const context=vm.createContext({e:String,Error,document:{querySelector:()=>target},flushReport:async()=>{if(changeOnFlush)vm.runInContext('reportDraft.revision++',context);},signerIdentityMarkup:()=>'<dl>trusted identity</dl>',textfield:()=>'<textarea name="report_comment"></textarea>',drawnSignatureMarkup:()=>'<canvas></canvas>',wireDrawnSignature:()=>()=>drawing,statusLabel:String,action:fn=>pendingAction=fn(),api:async(path,body)=>{requests.push({path,body});return {report:{id:'r',revision:body.revision+1,status:path.endsWith('/submit')?'pending_secretary':'pending_advisor'}};},refresh:async()=>{},render:()=>{},notice:()=>{}});

@@ -2,7 +2,8 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
 const names=['plannedDuration','proposalStepErrors','firstProposalErrorStep'];
-const functions=names.map(name=>source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`))).join('\n');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const functions=loader.functions(names);
 const context=vm.createContext({Date,Number,String,Array,Object,Set,Math});vm.runInContext(functions+'\nglobalThis.rules={plannedDuration,proposalStepErrors,firstProposalErrorStep};',context);
 const r=context.rules,complete={title:'Learning event',summary:'A useful event',venue:'Hall',introduction:'Background',eligibility:'Students',objectives:['Learn together','Share skills'],date:'2026-11-01',end_date:'2026-11-02',start_time:'23:00',end_time:'01:30',target_count:20,nature:[],mode:'Physical',ict_required:false,logistics_required:false,activities:[{name:'Session',description:'Discussion'}],itinerary:[{start:'23:00',end:'01:30',agenda:'Session'}],committee:[{email:'person@qiu.edu.my',name:'Person',role:'Coordinator',responsibility:'Organise'}],revenue:[],expenses:[],conclusion:'Expected outcomes'};
 assert.equal(r.plannedDuration(complete).seconds,9000);assert.equal(r.plannedDuration({...complete,end_date:'2026-11-03'}).label,'1 day 2 hours 30 minutes');

@@ -1,9 +1,8 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
-const functions=['previewPersonaButtons','previewLoginMarkup','googleSignInMarkup','login'].map(name=>{
- const line=source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`));assert.ok(line,`${name} must be tested`);return line;
-}).join('\n');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const functions=loader.functions(['previewPersonaButtons','previewLoginMarkup','googleSignInMarkup','login']);
 let html='',setupClick;const details={hidden:true,innerHTML:''};const app={set innerHTML(value){html=value;},querySelector:key=>key==='#google-setup'?{addEventListener:(_,handler)=>{setupClick=handler;}}:key==='#google-setup-details'?details:null,querySelectorAll:()=>[]};
 const context=vm.createContext({app,state:{auth:{preview:true,configured:false,missing_configuration:['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET']}},e:v=>String(v)});
 vm.runInContext(functions+'\nlogin();',context);

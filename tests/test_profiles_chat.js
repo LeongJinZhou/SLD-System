@@ -1,9 +1,10 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),lines=source.split(/\r?\n/);
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
 const names=['assistantAnswerMarkup','safeTaskHref','humanDate','humanPeriod','wireAutoFilters','trackingStatusMatches'];
-const functions=names.map(name=>lines.find(line=>line.startsWith(`function ${name}(`)||line.startsWith(`async function ${name}(`))).join('\n');
-const chat=source.split('// CHAT_HISTORY_START')[1].split('// CHAT_HISTORY_END')[0];
+const functions=loader.functions(names);
+const chat=loader.section('CHAT_HISTORY');
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const paths=[],pending=[],timers=[];let history=Array.from({length:145},(_,i)=>({id:'conversation-'+i,question:'Question '+i,created_at:'2026-10-09T01:00:00Z',response:{answer:'<script>private '+i+'</script>',mode:'grounded',sources:[]}}));
 const context=vm.createContext({e,Date,Intl,Array,Number,Math,Error,URLSearchParams,state:{user:{id:'A'}},document:{querySelector:()=>null,querySelectorAll:()=>[]},localTime:v=>String(v),statusLabel:v=>String(v),assistantQuestionPlaceholder:()=> 'Question',captureUiPosition:()=>({scrollY:500}),restoreUiPosition:position=>paths.push({position}),showRequestError:()=>{},clearTimeout(){},setTimeout(fn){timers.push(fn);return timers.length;},api:(path,body)=>{paths.push({path,body});if(path.startsWith('/api/assistant/history?')){const q=new URLSearchParams(path.split('?')[1]),offset=Number(q.get('offset')),limit=Math.min(100,Number(q.get('limit')));return Promise.resolve({entries:history.slice(offset,offset+limit),total:history.length});}if(path==='/api/assistant/history/delete')return Promise.resolve({deleted:1});return new Promise((resolve,reject)=>pending.push({resolve,reject}));}});

@@ -2,11 +2,9 @@
 // Pure Node checks of the actual save controller; no browser access or UI claims.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
-const start=source.indexOf('let clubEditVersion=');
-const end=source.indexOf('function progressMarkup',start);
-assert.ok(start>=0&&end>start);
-const controller=source.slice(start,end);
-const polling=source.slice(source.indexOf('function startPolling()'),source.indexOf('function updateProgress()'));
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const controller=loader.between('let','clubEditVersion','function','progressMarkup');
+const polling=loader.fn('startPolling');
 function setup(api){
  let tick;const readers=[];
  const context=vm.createContext({structuredClone,Error,clearTimeout:()=>{},setTimeout:()=>1,api,

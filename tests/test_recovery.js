@@ -1,7 +1,8 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),start=source.indexOf('const recoveryClubFields='),end=source.indexOf('function showSessionExpired()',start);
-assert.ok(start>=0&&end>start);
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const recovery=loader.between('const','recoveryClubFields','function','showSessionExpired');
 const values=new Map(),notices=[];
 const context=vm.createContext({structuredClone,Error,JSON,sessionStorage:{setItem:(k,v)=>values.set(k,v),getItem:k=>values.get(k),removeItem:k=>values.delete(k)},
  captureClub:()=>{},captureProposal:()=>{},notice:msg=>notices.push(msg),clubCanEditProposals:c=>Boolean(c?.can_edit_proposals),
@@ -12,7 +13,7 @@ vm.runInContext(`let state={user:{id:'one',email:'one@qiu.edu.my'},clubs:[{id:'c
  recoveryOwner={id:'old',email:'old@qiu.edu.my'},sessionExpired=false,dirty=true,view='proposals',proposalStep=1,selectedClubId='club',
  clubEditVersion=0,clubSavedVersion=0,proposalEditVersion=0,proposalSavedVersion=0,clubRemote=null,proposalRemote=null,clubSaveError='',proposalSaveError='';
  const recoveryKey='test';
- ${source.slice(start,end)}
+ ${recovery}
  globalThis.controls={persistRecovery,clearRecovery,restoreRecovery,
  setUser(id,email){state.user={id,email};},clearDrafts(){clubDraft=proposalDraft=null;},
  removeAccess(){state.clubs=[];state.proposals=[];},

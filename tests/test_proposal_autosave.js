@@ -2,14 +2,14 @@
 // Run the real controller with mocked transport; this is not browser interaction QA.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/app.js','utf8');
-const start=source.indexOf('// PROPOSAL_AUTOSAVE_START'),end=source.indexOf('// PROPOSAL_AUTOSAVE_END');
-assert.ok(start>=0&&end>start);
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const controller=loader.section('PROPOSAL_AUTOSAVE');
 function setup(api){
  const context=vm.createContext({structuredClone,Error,api,crypto:{randomUUID:()=> '12345678-1234-4234-8234-123456789012'},clearTimeout:()=>{},setTimeout:()=>1,
   document:{querySelector:()=>null},captureProposal:()=>{},proposalCanEdit:p=>['draft','returned'].includes(p.status||'draft'),
   updateProposalProgress:()=>{},showRequestError:()=>{},sessionError:()=>Error('Session expired'),clearRecovery:()=>{}});
  vm.runInContext(`let state={proposals:[]},proposalDraft={club_id:'club',title:'',summary:'First draft',status:'draft'},dirty=false,sessionExpired=false;
- ${source.slice(start,end)}
+ ${controller}
  globalThis.controls={flush:flushProposal,reset:resetProposalAutosave,
  edit(text){proposalDraft.summary=text;markProposalChanged();},
  existing(){proposalDraft={id:'proposal',revision:1,status:'draft',summary:'Viewed draft'};resetProposalAutosave();},

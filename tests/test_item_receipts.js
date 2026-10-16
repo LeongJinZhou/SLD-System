@@ -1,8 +1,9 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),lines=source.split(/\r?\n/);
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
 const names=['uploadItemReceipt','flushFinancialReport'];
-const functions=names.map(name=>lines.find(line=>line.startsWith(`function ${name}(`)||line.startsWith(`async function ${name}(`))).join('\n');
+const functions=loader.functions(names);
 const reads=[],saves=[],requests=[],controls=[{disabled:false,isConnected:true}],status={textContent:''},checks={insertAdjacentHTML:(_position,html)=>requests.push({html})};
 const main={querySelectorAll:()=>controls,querySelector:selector=>selector.includes('data-evidence-row')?checks:status};
 const context=vm.createContext({Array,Error,document:{querySelector:()=>null},captureFinancialReport(){},markFinancialChanged(){context.dirty=true},updateFinanceSaveStatus(){},financialReportCanEdit:()=>true,readReceipt:()=>new Promise((resolve,reject)=>reads.push({resolve,reject})),e:v=>String(v),api:async(path,body)=>{requests.push({path,body});return {receipt:{id:'receipt',filename:'Receipt.png'}}},saveFinancialReport:async()=>{saves.push(structuredClone(context.financeDraft));context.financeDraft.id||='report';context.dirty=false;}});

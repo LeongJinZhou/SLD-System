@@ -1,8 +1,10 @@
 'use strict';
 // Executes actual signature controllers with pointer/DOM mocks; no browser-layout claim.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync('web/app.js','utf8'),helpers=source.slice(source.indexOf('// PROPOSAL_SIGNATURE_START'),source.indexOf('// PROPOSAL_SIGNATURE_END'));
-const functions=['proposalReviewMarkup','proposalCanSubmit'].map(name=>source.split(/\r?\n/).find(line=>line.startsWith(`function ${name}(`))).join('\n');
+const source=fs.readFileSync('web/app.js','utf8');
+const loader=require('./helpers/source_loader').createSourceLoader(source);
+const helpers=loader.section('PROPOSAL_SIGNATURE');
+const functions=loader.functions(['proposalReviewMarkup','proposalCanSubmit']);
 const requests=[],notices=[];let focused=0,actionPromise;
 const error={hidden:true,textContent:''},attributes=new Map(),clearButton={},returnButton={},comment={value:'',setCustomValidity(){},reportValidity(){}};
 const canvas={width:1000,height:300,getContext:()=>({beginPath(){},moveTo(){},lineTo(){},stroke(){},clearRect(){}}),getBoundingClientRect:()=>({left:0,top:0,width:1000,height:300}),setPointerCapture(){},setAttribute:(k,v)=>attributes.set(k,v),removeAttribute:k=>attributes.delete(k),focus:()=>focused++,toDataURL:()=> 'data:image/png;base64,drawn-png'};
@@ -21,10 +23,12 @@ async function run(){
  c.review({querySelector:()=>form},record);form.onsubmit({preventDefault(){}});await actionPromise;assert.equal(requests.length,0,'Blank signature must not reach API');stroke();form.onsubmit({preventDefault(){}});await actionPromise;assert.equal(requests.length,1);assert.equal(requests[0].path,'/api/proposals/p/review');assert.equal(requests[0].body.revision,8);assert.equal(requests[0].body.name,undefined);assert.equal(requests[0].body.date,undefined);assert.ok(requests[0].body.signature.startsWith('data:image/png'));assert.equal(requests[0].body.confirm_submission,true);
  c.remote({revision:9});form.onsubmit({preventDefault(){}});await assert.rejects(actionPromise,/newer proposal/);assert.equal(requests.length,1);
  state.user={email:'president@qiu.edu.my',role:'student'};assert.equal(c.canSubmit({club_id:'club',can_edit:true}),true);state.user={email:'sld@qiu.edu.my',role:'sld'};assert.equal(c.canSubmit({club_id:'club',can_edit:true}),false);
- const draft={title:'Keep text',history:[{signature:'private'}],signatures:{preparer:{signature:'private'}},signed_versions:[{signature:'private'}],preparer_profile:{name:'private'},reviewer_profile:{name:'private'}};
- const payloadStart=source.indexOf('const version=proposalEditVersion,payload=structuredClone(draft);'),payloadEnd=source.indexOf('const organisingClub=',payloadStart);
- const payloadContext=vm.createContext({draft,proposalEditVersion:1,structuredClone});vm.runInContext(source.slice(payloadStart,payloadEnd)+'globalThis.sent=payload;',payloadContext);assert.equal(payloadContext.sent.title,'Keep text');assert.ok(!JSON.stringify(payloadContext.sent).includes('private'));
- const recoveryLine=source.split(/\r?\n/).find(line=>line.startsWith('const recoveryProposalFields='));vm.runInContext(recoveryLine+'globalThis.fields=recoveryProposalFields;',payloadContext);for(const key of ['signatures','signed_versions','history','signature'])assert.ok(!payloadContext.fields.includes(key));
+ const draft={id:'p',revision:1,title:'Keep text',history:[{signature:'private'}],signatures:{preparer:{signature:'private'}},signed_versions:[{signature:'private'}],preparer_profile:{name:'private'},reviewer_profile:{name:'private'}};
+ let sent;
+ const payloadContext=vm.createContext({draft,structuredClone,clearTimeout(){},document:{querySelector:()=>null},captureProposal(){},proposalCanEdit:()=>true,updateProposalProgress(){},api:async(_path,body)=>{sent=body.proposal;return {proposal:{id:'p',revision:2}};}});
+ vm.runInContext(`let proposalDraft=draft,dirty=true,state={proposals:[]};${loader.section('PROPOSAL_AUTOSAVE')}\nproposalEditVersion=1;globalThis.saving=flushProposal();`,payloadContext);
+ await payloadContext.saving;assert.equal(sent.title,'Keep text');assert.ok(!JSON.stringify(sent).includes('private'));
+ const recoveryFields=loader.declaration('const','recoveryProposalFields');vm.runInContext(recoveryFields+'globalThis.fields=recoveryProposalFields;',payloadContext);for(const key of ['signatures','signed_versions','history','signature'])assert.ok(!payloadContext.fields.includes(key));
  console.log('PASS: actual proposal signature controller rejects blank/click drawings, clears strokes, uses readonly identities/server dates and canonical revision slots, protects newer versions and excludes signature data from autosave/recovery.');
 }
 run().catch(error=>{console.error(error);process.exitCode=1;});
